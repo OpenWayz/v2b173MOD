@@ -44,7 +44,7 @@ class ResetLog extends Command
      */
     public function handle()
     {
-        StatUser::where('record_at', '<', strtotime('-2 month', time()))->delete();
-        StatServer::where('record_at', '<', strtotime('-2 month', time()))->delete();
+        StatUser::where('record_at', '<', strtotime('-1 month', time()))->delete();
+        StatServer::where('record_at', '<', strtotime('-1 month', time()))->delete();
     }
 }
