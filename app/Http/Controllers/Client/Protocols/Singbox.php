@@ -89,7 +89,7 @@ class Singbox
     {
         if (strpos($server['cipher'], '2022-blake3') !== false) {
             $length = $server['cipher'] === '2022-blake3-aes-128-gcm' ? 16 : 32;
-            $serverKey = Helper::getServerKey($server['created_at'], $length);
+            $serverKey = Helper::getShadowsocksServerKey($server['created_at'], $length);
             $userKey = Helper::uuidToBase64($password, $length);
             $password = "{$serverKey}:{$userKey}";
         }

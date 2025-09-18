@@ -31,7 +31,7 @@ class Kernel extends ConsoleKernel
         $schedule->command('v2board:statistics')->dailyAt('0:10');
         // check
         $schedule->command('check:order')->everyMinute();
-        $schedule->command('check:commission')->everyMinute();
+        $schedule->command('check:commission')->everyFifteenMinutes();
         $schedule->command('check:ticket')->everyMinute();
         // reset
         $schedule->command('reset:traffic')->daily();

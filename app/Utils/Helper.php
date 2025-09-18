@@ -14,6 +14,11 @@ class Helper
         return base64_encode(substr(md5($timestamp), 0, $length));
     }
 
+    public static function getServerKey($timestamp, $length)
+    {
+        return base64_encode(substr(md5($timestamp), 0, $length));
+    }
+
     public static function guid($format = false)
     {
         if (function_exists('com_create_guid') === true) {
