@@ -26,11 +26,16 @@ class StatController extends Controller
     {
         return response([
             'data' => [
+                'online_user' => User::where('t','>=', time() - 600)
+                    ->count(),
                 'month_income' => Order::where('created_at', '>=', strtotime(date('Y-m-1')))
                     ->where('created_at', '<', time())
                     ->whereNotIn('status', [0, 2])
                     ->sum('total_amount'),
                 'month_register_total' => User::where('created_at', '>=', strtotime(date('Y-m-1')))
+                    ->where('created_at', '<', time())
+                    ->count(),
+                'day_register_total' => User::where('created_at', '>=', strtotime(date('Y-m-d')))
                     ->where('created_at', '<', time())
                     ->count(),
                 'ticket_pending_total' => Ticket::where('status', 0)
