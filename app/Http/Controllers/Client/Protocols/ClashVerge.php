@@ -5,9 +5,9 @@ namespace App\Http\Controllers\Client\Protocols;
 use App\Utils\Helper;
 use Symfony\Component\Yaml\Yaml;
 
-class Stash
+class ClashVerge
 {
-    public $flag = 'stash';
+    public $flag = 'verge';
     private $servers;
     private $user;
 
@@ -24,10 +24,9 @@ class Stash
         $appName = config('v2board.app_name', 'V2Board');
         header("subscription-userinfo: upload={$user['u']}; download={$user['d']}; total={$user['transfer_enable']}; expire={$user['expired_at']}");
         header('profile-update-interval: 24');
-        header("content-disposition: filename*=UTF-8''".rawurlencode($appName));
-        // 暂时使用clash配置文件，后续根据Stash更新情况更新
-        $defaultConfig = base_path() . '/resources/rules/default.stash.yaml';
-        $customConfig = base_path() . '/resources/rules/custom.stash.yaml';
+        header("content-disposition:attachment;filename*=UTF-8''".rawurlencode($appName));
+        $defaultConfig = base_path() . '/resources/rules/default.clash.yaml';
+        $customConfig = base_path() . '/resources/rules/custom.clash.yaml';
         if (\File::exists($customConfig)) {
             $config = Yaml::parseFile($customConfig);
         } else {
@@ -37,14 +36,7 @@ class Stash
         $proxies = [];
 
         foreach ($servers as $item) {
-            if ($item['type'] === 'shadowsocks'
-                && in_array($item['cipher'], [
-                    'aes-128-gcm',
-                    'aes-192-gcm',
-                    'aes-256-gcm',
-                    'chacha20-ietf-poly1305'
-                ])
-            ) {
+            if ($item['type'] === 'shadowsocks') {
                 array_push($proxy, self::buildShadowsocks($user['uuid'], $item));
                 array_push($proxies, $item['name']);
             }
@@ -64,6 +56,10 @@ class Stash
                 array_push($proxy, self::buildTuic($user['uuid'], $item));
                 array_push($proxies, $item['name']);
             }
+            if ($item['type'] === 'anytls') {
+                array_push($proxy, self::buildAnyTLS($user['uuid'], $item));
+                array_push($proxies, $item['name']);
+            }
             if ($item['type'] === 'hysteria') {
                 array_push($proxy, self::buildHysteria($user['uuid'], $item));
                 array_push($proxies, $item['name']);
@@ -72,7 +68,7 @@ class Stash
 
         $config['proxies'] = array_merge($config['proxies'] ? $config['proxies'] : [], $proxy);
         foreach ($config['proxy-groups'] as $k => $v) {
-            if (!is_array($config['proxy-groups'][$k]['proxies'])) continue;
+            if (!is_array($config['proxy-groups'][$k]['proxies'])) $config['proxy-groups'][$k]['proxies'] = [];
             $isFilter = false;
             foreach ($config['proxy-groups'][$k]['proxies'] as $src) {
                 foreach ($proxies as $dst) {
@@ -93,11 +89,11 @@ class Stash
         });
         $config['proxy-groups'] = array_values($config['proxy-groups']);
         // Force the current subscription domain to be a direct rule
-    /*    $subsDomain = $_SERVER['HTTP_HOST'];
-        if ($subsDomain) {
-            array_unshift($config['rules'], "DOMAIN,{$subsDomain},DIRECT");
-       }
-*/ 
+        //$subsDomain = $_SERVER['HTTP_HOST'];
+        //if ($subsDomain) {
+        //    array_unshift($config['rules'], "DOMAIN,{$subsDomain},DIRECT");
+        //}
+
         $yaml = Yaml::dump($config, 2, 4, Yaml::DUMP_EMPTY_ARRAY_AS_SEQUENCE);
         $yaml = str_replace('$app_name', config('v2board.app_name', 'V2Board'), $yaml);
         return $yaml;
@@ -109,7 +105,8 @@ class Stash
             $serverKey = Helper::getServerKey($server['created_at'], 16);
             $userKey = Helper::uuidToBase64($password, 16);
             $password = "{$serverKey}:{$userKey}";
-        } elseif ($server['cipher'] === '2022-blake3-aes-256-gcm') {
+        }
+        if ($server['cipher'] === '2022-blake3-aes-256-gcm') {
             $serverKey = Helper::getServerKey($server['created_at'], 32);
             $userKey = Helper::uuidToBase64($password, 32);
             $password = "{$serverKey}:{$userKey}";
@@ -125,10 +122,15 @@ class Stash
         if (isset($server['obfs']) && $server['obfs'] === 'http') {
             $array['plugin'] = 'obfs';
             $plugin_opts = [
-                'mode' => 'http',
+                'mode' => 'http'
             ];
-            if (isset($server['obfs-host']) && !empty($server['obfs-host'])) {
+            if (isset($server['obfs-host'])) {
                 $plugin_opts['host'] = $server['obfs-host'];
+            } else {
+                $plugin_opts['host'] = '';
+            }
+            if (isset($server['obfs-path'])) {
+                $plugin_opts['path'] = $server['obfs-path'];
             }
             $array['plugin-opts'] = $plugin_opts;
         }
@@ -162,6 +164,7 @@ class Stash
             if (isset($tcpSettings['header']['type']) && $tcpSettings['header']['type'] == 'http') {
                 $array['network'] = $tcpSettings['header']['type'];
                 if (isset($tcpSettings['header']['request']['headers']['Host'])) $array['http-opts']['headers']['Host'] = $tcpSettings['header']['request']['headers']['Host'];
+                if (isset($tcpSettings['header']['request']['path'])) $array['http-opts']['path'] = $tcpSettings['header']['request']['path'];
             }
         }
         if ($server['network'] === 'ws') {
@@ -173,13 +176,7 @@ class Stash
                     $array['ws-opts']['path'] = $wsSettings['path'];
                 if (isset($wsSettings['headers']['Host']) && !empty($wsSettings['headers']['Host']))
                     $array['ws-opts']['headers'] = ['Host' => $wsSettings['headers']['Host']];
-                if (isset($wsSettings['path']) && !empty($wsSettings['path']))
-                    $array['ws-path'] = $wsSettings['path'];
-                if (isset($wsSettings['headers']['Host']) && !empty($wsSettings['headers']['Host']))
-                    $array['ws-headers'] = ['Host' => $wsSettings['headers']['Host']];
-                if (isset($wsSettings['security'])) {
-                    $array['cipher'] = $wsSettings['security'];
-                }
+
             }
         }
         if ($server['network'] === 'grpc') {
@@ -187,7 +184,7 @@ class Stash
             if ($server['networkSettings']) {
                 $grpcSettings = $server['networkSettings'];
                 $array['grpc-opts'] = [];
-                if (isset($grpcSettings['serviceName']))  $array['grpc-opts']['grpc-service-name'] = $grpcSettings['serviceName'];
+                if (isset($grpcSettings['serviceName'])) $array['grpc-opts']['grpc-service-name'] = $grpcSettings['serviceName'];
             }
         }
 
@@ -202,11 +199,13 @@ class Stash
         $array['server'] = $server['host'];
         $array['port'] = $server['port'];
         $array['uuid'] = $uuid;
-        $array['flow'] = $server['flow'] ?? null;
         $array['udp'] = true;
-
+        
         if ($server['tls']) {
             $array['tls'] = true;
+            $array['skip-cert-verify'] = isset($server['tls_settings']['allow_insecure']) && $server['tls_settings']['allow_insecure'] == 1 ? true : false;
+            $array['flow'] = !empty($server['flow']) ? $server['flow']: "";
+            $array['client-fingerprint'] = !empty($server['tls_settings']['fingerprint']) ? $server['tls_settings']['fingerprint'] : 'chrome';
             if ($server['tls_settings']) {
                 $tlsSettings = $server['tls_settings'];
                 if (isset($tlsSettings['server_name']) && !empty($tlsSettings['server_name']))
@@ -216,12 +215,6 @@ class Stash
                    $array['reality-opts']['public-key'] = $tlsSettings['public_key'];
                    $array['reality-opts']['short-id'] = $tlsSettings['short_id'];
                 }
-                if (isset($tlsSettings['allow_insecure']) && $tlsSettings['allow_insecure'] == '1') {
-                     $array['skip-cert-verify'] = true;
-                } else {
-                     $array['skip-cert-verify'] = false;
-                }
-                $array['client-fingerprint'] = $tlsSettings['fingerprint'] ?? null;
             }
         }
 
@@ -230,7 +223,7 @@ class Stash
             if (isset($tcpSettings['header']['type']) && $tcpSettings['header']['type'] == 'http') {
                 $array['network'] = $tcpSettings['header']['type'];
                 if (isset($tcpSettings['header']['request']['headers']['Host'])) $array['http-opts']['headers']['Host'] = $tcpSettings['header']['request']['headers']['Host'];
-                if (isset($tcpSettings['header']['request']['path'][0])) $array['http-opts']['path'] = $tcpSettings['header']['request']['path'][0];
+                if (isset($tcpSettings['header']['request']['path'])) $array['http-opts']['path'] = $tcpSettings['header']['request']['path'];
             }
         }
 
@@ -243,10 +236,6 @@ class Stash
                     $array['ws-opts']['path'] = $wsSettings['path'];
                 if (isset($wsSettings['headers']['Host']) && !empty($wsSettings['headers']['Host']))
                     $array['ws-opts']['headers'] = ['Host' => $wsSettings['headers']['Host']];
-                if (isset($wsSettings['path']) && !empty($wsSettings['path']))
-                    $array['ws-path'] = $wsSettings['path'];
-                if (isset($wsSettings['headers']['Host']) && !empty($wsSettings['headers']['Host']))
-                    $array['ws-headers'] = ['Host' => $wsSettings['headers']['Host']];
             }
         }
         if ($server['network'] === 'grpc') {
@@ -258,8 +247,20 @@ class Stash
             }
         }
 
+        if (isset($server['encryption']) && !empty($server['encryption']) && isset($server['encryption_settings']) && !empty($server['encryption_settings'])) {
+            $encryptionSettings = $server['encryption_settings'];
+            $array['encryption'] = $server['encryption'] ?? 'mlkem768x25519plus';
+            $array['encryption'] .= '.' . $encryptionSettings['mode'] ?? 'native';
+            $array['encryption'] .= '.' . $encryptionSettings['rtt'] ?? '1rtt';
+            if (isset($encryptionSettings['client_padding']) && !empty($encryptionSettings['client_padding'])) {
+                $array['encryption'] .= '.' . $encryptionSettings['client_padding'];
+            }
+            $array['encryption'] .= '.' . $encryptionSettings['password'] ?? '';
+        }
+
         return $array;
     }
+
     public static function buildTrojan($password, $server)
     {
         $array = [];
@@ -297,20 +298,43 @@ class Stash
             'type' => 'tuic',
             'server' => $server['host'],
             'port' => $server['port'],
-            'version' => 5,
             'uuid' => $password,
             'password' => $password,
             'alpn' => ['h3'],
-            //'disable-sni' => $server['disable_sni'] ? true : false,
-            //'reduce-rtt' => $server['zero_rtt_handshake'] ? true : false,
-            //'udp-relay-mode' => $server['udp_relay_mode'] ?? 'native',
-            //congestion-controller' => $server['congestion_control'] ?? 'cubic',
+            'disable-sni' => $server['disable_sni'] ? true : false,
+            'reduce-rtt' => $server['zero_rtt_handshake'] ? true : false,
+            'udp-relay-mode' => $server['udp_relay_mode'] ?? 'native',
+            'congestion-controller' => $server['congestion_control'] ?? 'cubic',
             'skip-cert-verify' => $server['insecure'] ? true : false,
         ];
         if (isset($server['server_name'])) {
             $array['sni'] = $server['server_name'];
         }
 
+        return $array;
+    }
+
+    public static function buildAnyTLS($password, $server)
+    {
+        $array = [
+            'name' => $server['name'],
+            'type' => 'anytls',
+            'server' => $server['host'],
+            'port' => $server['port'],
+            'password' => $password,
+            'client-fingerprint' => 'chrome',
+            'udp' => true,
+            'alpn' => [
+                'h2',
+                'http/1.1',
+            ],
+        ];
+        if (isset($server['server_name'])) {
+            $array['sni'] = $server['server_name'];
+        }
+        if ($server['insecure']) {
+            $array['skip-cert-verify'] = true;
+        }
         return $array;
     }
 
@@ -340,7 +364,7 @@ class Stash
 
         if ($server['version'] === 2) {
             $array['type'] = 'hysteria2';
-            $array['auth'] = $password;
+            $array['password'] = $password;
             if (isset($server['obfs'])){
                 $array['obfs'] = $server['obfs'];
                 $array['obfs-password'] = $server['obfs_password'];
@@ -359,17 +383,14 @@ class Stash
 
         return $array;
     }
-    private function isRegex($exp)
-    {
-        return @preg_match($exp, null) !== false;
-    }
 
     private function isMatch($exp, $str)
     {
-        try {
-            return preg_match($exp, $str);
-        } catch (\Exception $e) {
-            return false;
-        }
+        return @preg_match($exp, $str);
+    }
+
+    private function isRegex($exp)
+    {
+        return @preg_match($exp, null) !== false;
     }
 }

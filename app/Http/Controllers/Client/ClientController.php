@@ -4,9 +4,12 @@ namespace App\Http\Controllers\Client;
 
 use App\Http\Controllers\Client\Protocols\V2rayN;
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Client\Protocols\General;
+use App\Http\Controllers\Client\Protocols\ClashMeta;
 use App\Services\ServerService;
-use Illuminate\Http\Request;
 use App\Services\UserService;
+use App\Utils\Helper;
+use Illuminate\Http\Request;
 
 class ClientController extends Controller
 {
@@ -27,14 +30,13 @@ class ClientController extends Controller
                     $file = 'App\\Http\\Controllers\\Client\\Protocols\\' . basename($file, '.php');
                     $class = new $file($user, $servers);
                     if (strpos($flag, $class->flag) !== false) {
-                        die($class->handle());
+                        return $class->handle();
                     }
                 }
             }
             // todo 1.5.3 remove
-            $class = new V2rayN($user, $servers);
-            die($class->handle());
-            die('该客户端暂不支持进行订阅');
+            $class = new General($user, $servers);
+            return $class->handle();
         }
     }
 

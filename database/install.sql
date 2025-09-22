@@ -242,6 +242,8 @@ CREATE TABLE `v2_server_trojan` (
                                     `rate` varchar(11) NOT NULL COMMENT '倍率',
                                     `host` varchar(255) NOT NULL COMMENT '主机名',
                                     `port` varchar(11) NOT NULL COMMENT '连接端口',
+                                    `network` varchar(11) DEFAULT NULL COMMENT '传输方式',
+                                    `network_settings` text COMMENT '传输配置',
                                     `server_port` int(11) NOT NULL COMMENT '服务端口',
                                     `allow_insecure` tinyint(1) NOT NULL DEFAULT '0' COMMENT '是否允许不安全',
                                     `server_name` varchar(255) DEFAULT NULL,

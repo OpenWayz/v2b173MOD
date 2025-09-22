@@ -4,9 +4,9 @@ namespace App\Http\Controllers\Client\Protocols;
 
 use App\Utils\Helper;
 
-class V2rayNG
+class General
 {
-    public $flag = 'v2rayng';
+    public $flag = 'general';
     private $servers;
     private $user;
 
@@ -25,5 +25,4 @@ class V2rayNG
         }
         return base64_encode($uri);
     }
-
 }
