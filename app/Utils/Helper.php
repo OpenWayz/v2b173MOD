@@ -310,8 +310,12 @@ class Helper
             'allowInsecure' => $server['allow_insecure'],
             'peer' => $server['server_name'],
             'sni' => $server['server_name'],
-            'type'=> $server['network'],
+        //    'type'=> $server['network'],
         ];
+
+        if (!empty($server['network'])) {
+            $config['type'] = $server['network'];
+        }
 
         if(isset($server['network']) && in_array($server['network'], ["grpc", "ws"])){
             if($server['network'] === "grpc" && isset($server['network_settings']['serviceName'])) {

@@ -28,19 +28,11 @@ class Surge
         $proxyGroup = '';
 
         foreach ($servers as $item) {
-            if ($item['type'] === 'shadowsocks'
-                && in_array($item['cipher'], [
-                    'aes-128-gcm',
-                    'aes-192-gcm',
-                    'aes-256-gcm',
-                    'chacha20-ietf-poly1305'
-                ])
-            ) {
+            if ($item['type'] === 'shadowsocks') {
                 // [Proxy]
                 $proxies .= self::buildShadowsocks($user['uuid'], $item);
                 // [Proxy Group]
                 $proxyGroup .= $item['name'] . ', ';
-            }
             }elseif ($item['type'] === 'vmess') {
                 // [Proxy]
                 $proxies .= self::buildVmess($user['uuid'], $item);
@@ -102,12 +94,6 @@ class Surge
         }
         $config = [
             "{$server['name']}=ss",
-            "{$server['host']}",
-            "{$server['port']}",
-            "encrypt-method={$server['cipher']}",
-            "password={$password}",
-            'tfo=true',
-            'udp-relay=true'
         ];
         $config[] = $server['host'];
         $config[] = $server['port'];
