@@ -55,7 +55,6 @@ class TicketController extends Controller
 
         // 获取工单状态
         $ticketStatus = config('v2board.ticket_status', 0);
-
         switch ($ticketStatus) {
             case 0:
                 // 完全开放，不禁止任何工单
@@ -65,7 +64,7 @@ class TicketController extends Controller
                 break;
             case 2:
                 // 完全禁止所有工单
-                throw new \Exception(__('工单客服系统临时关闭，请查看网站公告'));
+                abort(500, __('工单系统临时关闭，请查看网站公告'));
                 break;
             default:
                 // 处理未知状态
