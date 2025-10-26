@@ -8,6 +8,7 @@ class ConfigSave extends FormRequest
 {
     const RULES = [
         // invite & commission
+        'ticket_status' => 'in:0,1,2',
         'invite_force' => 'in:0,1',
         'invite_commission' => 'integer',
         'invite_gen_limit' => 'integer',

@@ -69,6 +69,9 @@ class ConfigController extends Controller
     {
         $key = $request->input('key');
         $data = [
+            'ticket' => [
+                'ticket_status' => config('v2board.ticket_status', 0)
+            ],
             'invite' => [
                 'invite_force' => (int)config('v2board.invite_force', 0),
                 'invite_commission' => config('v2board.invite_commission', 10),
