@@ -65,7 +65,7 @@ class TrojanTidalabController extends Controller
     // 后端提交数据
     public function submit(Request $request)
     {
-        // Log::info('serverSubmitData:' . $request->input('node_id') . ':' . file_get_contents('php://input'));
+        // Log::info('serverSubmitData:' . $request->input('node_id') . ':' . request()->getContent() ?: json_encode($_POST));
         $server = ServerTrojan::find($request->input('node_id'));
         if (!$server) {
             return response([
@@ -73,16 +73,16 @@ class TrojanTidalabController extends Controller
                 'msg' => 'server is not found'
             ]);
         }
-        $data = file_get_contents('php://input');
+        $data = request()->getContent() ?: json_encode($_POST);
         $data = json_decode($data, true);
         Cache::put(CacheKey::get('SERVER_TROJAN_ONLINE_USER', $server->id), count($data), 3600);
         Cache::put(CacheKey::get('SERVER_TROJAN_LAST_PUSH_AT', $server->id), time(), 3600);
         $userService = new UserService();
+        $formatData = [];
         foreach ($data as $item) {
-            $u = $item['u'];
-            $d = $item['d'];
-            $userService->trafficFetch($u, $d, $item['user_id'], $server->toArray(), 'trojan');
+            $formatData[$item['user_id']] = [$item['u'], $item['d']];
         }
+        $userService->trafficFetch($server->toArray(), 'trojan', $formatData);
 
         return response([
             'ret' => 1,

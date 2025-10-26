@@ -168,10 +168,10 @@ class UserService
         return true;
     }
 
-    public function trafficFetch(int $u, int $d, int $userId, array $server, string $protocol)
+    public function trafficFetch(array $server, string $protocol, array $data)
     {
-        TrafficFetchJob::dispatch($u, $d, $userId, $server, $protocol);
-        StatServerJob::dispatch($u, $d, $server, $protocol, 'd');
-        StatUserJob::dispatch($u, $d, $userId, $server, $protocol, 'd');
+        TrafficFetchJob::dispatch($data, $server, $protocol);
+        StatUserJob::dispatch($data, $server, $protocol, 'd');
+        StatServerJob::dispatch($data, $server, $protocol, 'd');
     }
 }

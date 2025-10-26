@@ -12,6 +12,7 @@ use App\Models\ServerShadowsocks;
 use App\Models\ServerVmess;
 use App\Models\ServerTrojan;
 use Illuminate\Support\Facades\Cache;
+use MessagePack\Packer;
 
 class UniProxyController extends Controller
 {
@@ -46,10 +47,21 @@ class UniProxyController extends Controller
         $users = $users->toArray();
 
         $response['users'] = $users;
+        if (strpos($request->header('X-Response-Format'), 'msgpack') !== false) {
+            $packer = new Packer();
+            $packed = $packer->pack($response); // 用新的变量
+            $eTag = sha1($packed);
+            if (strpos($request->header('If-None-Match'), $eTag) !== false) {
+                abort(304);
+            }
 
-        $eTag = sha1(json_encode($response));
-        if (strpos($request->header('If-None-Match'), $eTag) !== false ) {
-            abort(304);
+            return response($packed, 200, ['Content-Type' => 'application/x-msgpack'])
+                ->header('ETag', "\"{$eTag}\"");
+        } else {
+            $eTag = sha1(json_encode($response));
+            if (strpos($request->header('If-None-Match'), $eTag) !== false ) {
+                abort(304);
+            }
         }
 
         return response($response)->header('ETag', "\"{$eTag}\"");
@@ -58,16 +70,18 @@ class UniProxyController extends Controller
     // 后端提交数据
     public function push(Request $request)
     {
-        $data = file_get_contents('php://input');
+        $data = request()->getContent() ?: json_encode($_POST);
         $data = json_decode($data, true);
+        if ($data === null && json_last_error() !== JSON_ERROR_NONE) {
+            // JSON decoding error
+            return response([
+                'error' => 'Invalid traffic data'
+            ], 400);
+        }
         Cache::put(CacheKey::get('SERVER_' . strtoupper($this->nodeType) . '_ONLINE_USER', $this->nodeInfo->id), count($data), 3600);
         Cache::put(CacheKey::get('SERVER_' . strtoupper($this->nodeType) . '_LAST_PUSH_AT', $this->nodeInfo->id), time(), 3600);
         $userService = new UserService();
-        foreach (array_keys($data) as $k) {
-            $u = $data[$k][0];
-            $d = $data[$k][1];
-            $userService->trafficFetch($u, $d, $k, $this->nodeInfo->toArray(), $this->nodeType);
-        }
+        $userService->trafficFetch($this->nodeInfo->toArray(), $this->nodeType, $data);
 
         return response([
             'data' => true

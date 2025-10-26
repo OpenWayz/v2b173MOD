@@ -9,13 +9,12 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\DB;
 
 class StatUserJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
-    protected $u;
-    protected $d;
-    protected $userId;
+    protected $data;
     protected $server;
     protected $protocol;
     protected $recordType;
@@ -28,12 +27,10 @@ class StatUserJob implements ShouldQueue
      *
      * @return void
      */
-    public function __construct($u, $d, $userId, array $server, $protocol, $recordType = 'd')
+    public function __construct(array $data, array $server, $protocol, $recordType = 'd')
     {
         $this->onQueue('stat');
-        $this->u = $u;
-        $this->d = $d;
-        $this->userId = $userId;
+        $this->data =$data;
         $this->server = $server;
         $this->protocol = $protocol;
         $this->recordType = $recordType;
@@ -50,30 +47,54 @@ class StatUserJob implements ShouldQueue
         if ($this->recordType === 'm') {
             //
         }
+        $attempt = 0;
+        $maxAttempts = 3;
+        $existingData = StatUser::where('record_at', $recordAt)
+        ->where('server_rate', $this->server['rate'])
+        ->whereIn('user_id', array_keys($this->data))
+        ->select(['user_id', 'id', 'u', 'd'])
+        ->get()
+        ->keyBy('user_id');
 
-        $data = StatUser::where('record_at', $recordAt)
-            ->where('server_rate', $this->server['rate'])
-            ->where('user_id', $this->userId)
-            ->first();
-        if ($data) {
+        $insertData = [];
+        while ($attempt < $maxAttempts) {
             try {
-                $data->update([
-                    'u' => $data['u'] + ($this->u * $this->server['rate'] *1.12),
-                    'd' => $data['d'] + ($this->d * $this->server['rate'] *1.12)
-                ]);
+                DB::beginTransaction();
+                foreach($this->data as $userId => $trafficData){
+                    if (isset($existingData[$userId])) {
+                        $userdata = StatUser::where('id', $existingData[$userId]['id'])->first();
+                        $userdata->update([
+                            'u' => $userdata['u'] + $trafficData[0] *1.20,
+                            'd' => $userdata['d'] + $trafficData[1] *1.15
+                        ]);
+                    } else {
+                        $insertData[] = [
+                            'user_id' => $userId,
+                            'server_rate' => $this->server['rate'],
+                            'u' => $trafficData[0] *1.20,
+                            'd' => $trafficData[1] *1.15,
+                            'record_type' => $this->recordType,
+                            'record_at' => $recordAt
+                        ];
+                    }
+                }
+                if (!empty($insertData)) {
+                    collect($insertData)->chunk(500)->each(function ($chunk) {
+                        StatUser::upsert($chunk->toArray(), ['user_id', 'server_rate', 'record_at']);
+                    });
+                }
+                DB::commit();
+                return;
             } catch (\Exception $e) {
-                abort(500, '用户统计数据更新失败');
-            }
-        } else {
-            if (!StatUser::create([
-                'user_id' => $this->userId,
-                'server_rate' => $this->server['rate'],
-                'u' => $this->u,
-                'd' => $this->d,
-                'record_type' => $this->recordType,
-                'record_at' => $recordAt
-            ])) {
-                abort(500, '用户统计数据创建失败');
+                DB::rollback();
+                if (strpos($e->getMessage(), '40001') !== false || strpos(strtolower($e->getMessage()), 'deadlock') !== false) {
+                    $attempt++;
+                    if ($attempt < $maxAttempts) {
+                        sleep(pow(2, $attempt));
+                        continue;
+                    }
+                }
+                abort(500, '用户统计数据失败'. $e->getMessage());
             }
         }
     }
