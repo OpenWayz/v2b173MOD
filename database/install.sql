@@ -255,6 +255,32 @@ CREATE TABLE `v2_server_trojan` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='trojan伺服器表';
 
 
+DROP TABLE IF EXISTS `v2_server_vless`;
+CREATE TABLE `v2_server_vless` (
+                                   `id` int(11) NOT NULL AUTO_INCREMENT,
+                                   `group_id` text NOT NULL,
+                                   `route_id` text,
+                                   `name` varchar(255) NOT NULL,
+                                   `parent_id` int(11) DEFAULT NULL,
+                                   `host` varchar(255) NOT NULL,
+                                   `port` int(11) NOT NULL,
+                                   `server_port` int(11) NOT NULL,
+                                   `tls` tinyint(1) NOT NULL,
+                                   `tls_settings` text,
+                                   `flow` varchar(64) DEFAULT NULL,
+                                   `network` varchar(11) NOT NULL,
+                                   `network_settings` text,
+                                   `encryption` varchar(64) DEFAULT NULL,
+                                   `encryption_settings` text,
+                                   `tags` text,
+                                   `rate` varchar(11) NOT NULL,
+                                   `show` tinyint(1) NOT NULL DEFAULT '0',
+                                   `sort` int(11) DEFAULT NULL,
+                                   `created_at` int(11) NOT NULL,
+                                   `updated_at` int(11) NOT NULL,
+                                   PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 DROP TABLE IF EXISTS `v2_server_vmess`;
 CREATE TABLE `v2_server_vmess` (
                                    `id` int(11) NOT NULL AUTO_INCREMENT,

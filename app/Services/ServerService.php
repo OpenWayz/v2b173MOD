@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\ServerLog;
 use App\Models\ServerRoute;
 use App\Models\ServerShadowsocks;
+use App\Models\ServerVless;
 use App\Models\User;
 use App\Models\ServerVmess;
 use App\Models\ServerTrojan;
@@ -14,6 +15,39 @@ use Illuminate\Support\Facades\Cache;
 
 class ServerService
 {
+    public function getAvailableVless(User $user):array
+    {
+        $servers = [];
+        $model = ServerVless::orderBy('sort', 'ASC');
+        $server = $model->get();
+        foreach ($server as $key => $v) {
+            if (!$v['show']) continue;
+            $server[$key]['type'] = 'vless';
+            if (!in_array($user->group_id, $server[$key]['group_id'])) continue;
+            if (strpos($server[$key]['port'], '-') !== false) {
+                $server[$key]['port'] = Helper::randomPort($server[$key]['port']);
+            }
+            if ($server[$key]['parent_id']) {
+                $server[$key]['last_check_at'] = Cache::get(CacheKey::get('SERVER_VLESS_LAST_CHECK_AT', $server[$key]['parent_id']));
+            } else {
+                $server[$key]['last_check_at'] = Cache::get(CacheKey::get('SERVER_VLESS_LAST_CHECK_AT', $server[$key]['id']));
+            }
+            if (isset($server[$key]['tls_settings'])) {
+                if (isset($server[$key]['tls_settings']['private_key'])) {
+                    $server[$key]['tls_settings']=array_diff_key($server[$key]['tls_settings'],array('private_key'=>''));
+                }
+            }
+            if (isset($server[$key]['encryption_settings'])) {
+                if (isset($server[$key]['encryption_settings']['private_key'])) {
+                    $server[$key]['encryption_settings']=array_diff_key($server[$key]['encryption_settings'],array('private_key'=>''));
+                }
+            }
+            $servers[] = $server[$key]->toArray();
+        }
+
+
+        return $servers;
+    }
 
     public function getAvailableVmess(User $user):array
     {
@@ -88,12 +122,17 @@ class ServerService
         $servers = array_merge(
             $this->getAvailableShadowsocks($user),
             $this->getAvailableVmess($user),
+            $this->getAvailableVless($user),
             $this->getAvailableTrojan($user)
         );
         $tmp = array_column($servers, 'sort');
         array_multisort($tmp, SORT_ASC, $servers);
         return array_map(function ($server) {
-            $server['port'] = (int)$server['port'];
+            if (strpos($server['port'], '-')) {
+                $server['mport'] = (string)$server['port'];
+            } else {
+                $server['port'] = (int)$server['port'];
+            }
             $server['is_online'] = (time() - 300 > $server['last_check_at']) ? 0 : 1;
             $server['cache_key'] = "{$server['type']}-{$server['id']}-{$server['updated_at']}-{$server['is_online']}";
             return $server;
@@ -171,6 +210,17 @@ class ServerService
         return $servers;
     }
 
+    public function getAllVLess()
+    {
+        $servers = ServerVless::orderBy('sort', 'ASC')
+            ->get()
+            ->toArray();
+        foreach ($servers as $k => $v) {
+            $servers[$k]['type'] = 'vless';
+        }
+        return $servers;
+    }
+
     public function getAllTrojan()
     {
         $servers = ServerTrojan::orderBy('sort', 'ASC')
@@ -204,6 +254,7 @@ class ServerService
         $servers = array_merge(
             $this->getAllShadowsocks(),
             $this->getAllVMess(),
+            $this->getAllVLess(),
             $this->getAllTrojan()
         );
         $this->mergeData($servers);
@@ -233,6 +284,8 @@ class ServerService
                 return ServerShadowsocks::find($serverId);
             case 'trojan':
                 return ServerTrojan::find($serverId);
+            case 'vless':
+                return ServerVless::find($serverId);
             default:
                 return false;
         }

@@ -36,33 +36,35 @@ class AdminRoute
             $router->group([
                 'prefix' => 'server/trojan'
             ], function ($router) {
-                $router->get ('fetch', 'Admin\\Server\\TrojanController@fetch');
                 $router->post('save', 'Admin\\Server\\TrojanController@save');
                 $router->post('drop', 'Admin\\Server\\TrojanController@drop');
                 $router->post('update', 'Admin\\Server\\TrojanController@update');
                 $router->post('copy', 'Admin\\Server\\TrojanController@copy');
-                $router->post('sort', 'Admin\\Server\\TrojanController@sort');
                 $router->post('viewConfig', 'Admin\\Server\\TrojanController@viewConfig');
             });
             $router->group([
                 'prefix' => 'server/vmess'
             ], function ($router) {
-                $router->get ('fetch', 'Admin\\Server\\VmessController@fetch');
                 $router->post('save', 'Admin\\Server\\VmessController@save');
                 $router->post('drop', 'Admin\\Server\\VmessController@drop');
                 $router->post('update', 'Admin\\Server\\VmessController@update');
                 $router->post('copy', 'Admin\\Server\\VmessController@copy');
-                $router->post('sort', 'Admin\\Server\\VmessController@sort');
             });
             $router->group([
                 'prefix' => 'server/shadowsocks'
             ], function ($router) {
-                $router->get ('fetch', 'Admin\\Server\\ShadowsocksController@fetch');
                 $router->post('save', 'Admin\\Server\\ShadowsocksController@save');
                 $router->post('drop', 'Admin\\Server\\ShadowsocksController@drop');
                 $router->post('update', 'Admin\\Server\\ShadowsocksController@update');
                 $router->post('copy', 'Admin\\Server\\ShadowsocksController@copy');
-                $router->post('sort', 'Admin\\Server\\ShadowsocksController@sort');
+            });
+            $router->group([
+                'prefix' => 'server/vless'
+            ], function ($router) {
+                $router->post('save', 'Admin\\Server\\VlessController@save');
+                $router->post('drop', 'Admin\\Server\\VlessController@drop');
+                $router->post('update', 'Admin\\Server\\VlessController@update');
+                $router->post('copy', 'Admin\\Server\\VlessController@copy');
             });
             // Order
             $router->get ('/order/fetch', 'Admin\\OrderController@fetch');
