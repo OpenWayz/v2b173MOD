@@ -34,7 +34,8 @@ class Kernel extends ConsoleKernel
         $schedule->command('check:commission')->everyFifteenMinutes();
         $schedule->command('check:ticket')->everyMinute();
         // reset
-        $schedule->command('reset:traffic')->daily();
+        //$schedule->command('reset:traffic')->daily();
+        $schedule->command('reset:traffic')->dailyAt('0:05');
         $schedule->command('reset:log')->daily();
         // send
         $schedule->command('send:remindMail')->dailyAt('11:30');
