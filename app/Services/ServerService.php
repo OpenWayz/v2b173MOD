@@ -9,6 +9,7 @@ use App\Models\ServerVless;
 use App\Models\User;
 use App\Models\ServerVmess;
 use App\Models\ServerTrojan;
+use App\Models\ServerAnytls;
 use App\Utils\CacheKey;
 use App\Utils\Helper;
 use Illuminate\Support\Facades\Cache;
@@ -116,6 +117,27 @@ class ServerService
         }
         return $servers;
     }
+    public function getAvailableAnyTLS(User $user)
+    {
+        $servers = [];
+        $model = ServerAnytls::orderBy('sort', 'ASC');
+        $anytls = $model->get()->keyBy('id');
+        foreach ($anytls as $key => $v) {
+            if (!$v['show']) continue;
+            $anytls[$key]['type'] = 'anytls';
+            $anytls[$key]['last_check_at'] = Cache::get(CacheKey::get('SERVER_ANYTLS_LAST_CHECK_AT', $v['id']));
+            if (!in_array($user->group_id, $v['group_id'])) continue;
+            if (strpos($v['port'], '-') !== false) {
+                $anytls[$key]['port'] = Helper::randomPort($v['port']);
+            }
+            if (isset($anytls[$v['parent_id']])) {
+                $anytls[$key]['last_check_at'] = Cache::get(CacheKey::get('SERVER_ANYTLS_LAST_CHECK_AT', $v['parent_id']));
+                $anytls[$key]['created_at'] = $anytls[$v['parent_id']]['created_at'];
+            }
+            $servers[] = $anytls[$key]->toArray();
+        }
+        return $servers;
+    }
 
     public function getAvailableServers(User $user)
     {
@@ -123,7 +145,8 @@ class ServerService
             $this->getAvailableShadowsocks($user),
             $this->getAvailableVmess($user),
             $this->getAvailableVless($user),
-            $this->getAvailableTrojan($user)
+            $this->getAvailableTrojan($user),
+            $this->getAvailableAnyTLS($user)
         );
         $tmp = array_column($servers, 'sort');
         array_multisort($tmp, SORT_ASC, $servers);
@@ -232,6 +255,20 @@ class ServerService
         return $servers;
     }
 
+    public function getAllAnyTLS()
+    {
+        $servers = ServerAnytls::orderBy('sort', 'ASC')
+            ->get()
+            ->toArray();
+        foreach ($servers as $k => $v) {
+            $servers[$k]['type'] = 'anytls';
+            if (isset($v['padding_scheme'])) {
+                $servers[$k]['padding_scheme'] = json_encode($v['padding_scheme']);
+            }
+        }
+        return $servers;
+    }
+
     private function mergeData(&$servers)
     {
         foreach ($servers as $k => $v) {
@@ -255,6 +292,7 @@ class ServerService
             $this->getAllShadowsocks(),
             $this->getAllVMess(),
             $this->getAllVLess(),
+            $this->getAllAnyTLS(),
             $this->getAllTrojan()
         );
         $this->mergeData($servers);
@@ -286,6 +324,8 @@ class ServerService
                 return ServerTrojan::find($serverId);
             case 'vless':
                 return ServerVless::find($serverId);
+            case 'anytls':
+                return ServerAnytls::find($serverId);
             default:
                 return false;
         }

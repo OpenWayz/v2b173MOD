@@ -24,7 +24,8 @@ class ManageController extends Controller
             'shadowsocks',
             'vmess',
             'vless',
-            'trojan'
+            'trojan',
+            'anytls'
         ) ?? [];
         if (empty($params)) {
             $params = [
@@ -32,6 +33,7 @@ class ManageController extends Controller
                 'vmess'       => $_POST['vmess'] ?? null,
                 'vless'       => $_POST['vless'] ?? null,
                 'trojan'      => $_POST['trojan'] ?? null,
+                'anytls'      => $_POST['anytls'] ?? null,
             ];
         }
         DB::beginTransaction();

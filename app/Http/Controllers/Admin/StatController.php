@@ -12,6 +12,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ServerGroup;
 use App\Models\ServerVmess;
 use App\Models\ServerVless;
+use App\Models\ServerAnytls;
 use App\Models\Plan;
 use App\Models\User;
 use App\Models\Ticket;
@@ -108,7 +109,8 @@ class StatController extends Controller
             'v2ray' => ServerVmess::where('parent_id', null)->get()->toArray(),
             'trojan' => ServerTrojan::where('parent_id', null)->get()->toArray(),
             'vmess' => ServerVmess::where('parent_id', null)->get()->toArray(),
-            'vless' => ServerVless::where('parent_id', null)->get()->toArray()
+            'vless' => ServerVless::where('parent_id', null)->get()->toArray(),
+            'anytls' => ServerAnytls::where('parent_id', null)->get()->toArray()
         ];
         $startAt = strtotime('-1 day', strtotime(date('Y-m-d')));
         $endAt = strtotime(date('Y-m-d'));

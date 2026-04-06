@@ -66,6 +66,14 @@ class AdminRoute
                 $router->post('update', 'Admin\\Server\\VlessController@update');
                 $router->post('copy', 'Admin\\Server\\VlessController@copy');
             });
+            $router->group([
+                'prefix' => 'server/anytls'
+            ], function ($router) {
+                $router->post('save', 'Admin\\Server\\AnyTLSController@save');
+                $router->post('drop', 'Admin\\Server\\AnyTLSController@drop');
+                $router->post('update', 'Admin\\Server\\AnyTLSController@update');
+                $router->post('copy', 'Admin\\Server\\AnyTLSController@copy');
+            });
             // Order
             $router->get ('/order/fetch', 'Admin\\OrderController@fetch');
             $router->post('/order/update', 'Admin\\OrderController@update');
@@ -82,6 +90,8 @@ class AdminRoute
             $router->post('/user/sendMail', 'Admin\\UserController@sendMail');
             $router->post('/user/ban', 'Admin\\UserController@ban');
             $router->post('/user/resetSecret', 'Admin\\UserController@resetSecret');
+            $router->post('/user/delUser', 'Admin\\UserController@delUser');
+            $router->post('/user/allDel', 'Admin\\UserController@allDel');
             $router->post('/user/setInviteUser', 'Admin\\UserController@setInviteUser');
             // StatOrder
             $router->get ('/stat/getOverride', 'Admin\\StatController@getOverride');
