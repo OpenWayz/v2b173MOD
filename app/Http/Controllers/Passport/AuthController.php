@@ -286,20 +286,35 @@ class AuthController extends Controller
 
     public function forget(AuthForget $request)
     {
-        if (Cache::get(CacheKey::get('EMAIL_VERIFY_CODE', $request->input('email'))) !== $request->input('email_code')) {
+        $email     = strtolower(trim((string)$request->input('email')));
+        $inputCode = (string)$request->input('email_code');
+        $password  = (string)$request->input('password');
+
+        if (!preg_match('/^\d{6}$/', $inputCode)) {
             abort(500, __('Incorrect email verification code'));
         }
-        $user = User::where('email', $request->input('email'))->first();
+
+        $forgetRequestLimitKey = CacheKey::get('FORGET_REQUEST_LIMIT', $email);
+        $forgetRequestLimit = (int)Cache::get($forgetRequestLimitKey);
+        if ($forgetRequestLimit >= 3) {
+            abort(500, __('Reset failed, Please try again later'));
+        }
+        $cachedCode = Cache::get(CacheKey::get('EMAIL_VERIFY_CODE', $email));
+        if ($cachedCode === null || $cachedCode === '' || !hash_equals((string)$cachedCode, $inputCode)) {
+            Cache::put($forgetRequestLimitKey, $forgetRequestLimit ? $forgetRequestLimit + 1 : 1, 300);
+            abort(500, __('Incorrect email verification code'));
+        }
+        $user = User::where('email', $email)->first();
         if (!$user) {
             abort(500, __('This email is not registered in the system'));
         }
-        $user->password = password_hash($request->input('password'), PASSWORD_DEFAULT);
+        $user->password = password_hash($password, PASSWORD_DEFAULT);
         $user->password_algo = NULL;
         $user->password_salt = NULL;
         if (!$user->save()) {
             abort(500, __('Reset failed'));
         }
-        Cache::forget(CacheKey::get('EMAIL_VERIFY_CODE', $request->input('email')));
+        Cache::forget(CacheKey::get('EMAIL_VERIFY_CODE', $email));
         return response([
             'data' => true
         ]);
