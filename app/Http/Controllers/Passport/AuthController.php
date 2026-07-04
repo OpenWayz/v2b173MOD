@@ -286,20 +286,25 @@ class AuthController extends Controller
 
     public function forget(AuthForget $request)
     {
-        $email     = strtolower(trim((string)$request->input('email')));
-        $inputCode = (string)$request->input('email_code');
-        $password  = (string)$request->input('password');
+        $email     = $request->input('email');
+        $inputCode = $request->input('email_code');
+        $password  = $request->input('password');
+
+        if (!is_string($email) || !is_string($inputCode) || !is_string($password)) {
+            abort(500, __('Incorrect email verification code'));
+        }
 
         if (!preg_match('/^\d{6}$/', $inputCode)) {
             abort(500, __('Incorrect email verification code'));
         }
 
-        $forgetRequestLimitKey = CacheKey::get('FORGET_REQUEST_LIMIT', $email);
+        $cacheKeyEmail         = strtolower(trim($email));
+        $forgetRequestLimitKey = CacheKey::get('FORGET_REQUEST_LIMIT', $cacheKeyEmail);
         $forgetRequestLimit = (int)Cache::get($forgetRequestLimitKey);
         if ($forgetRequestLimit >= 3) {
             abort(500, __('Reset failed, Please try again later'));
         }
-        $cachedCode = Cache::get(CacheKey::get('EMAIL_VERIFY_CODE', $email));
+        $cachedCode = Cache::get(CacheKey::get('EMAIL_VERIFY_CODE', $cacheKeyEmail));
         if ($cachedCode === null || $cachedCode === '' || !hash_equals((string)$cachedCode, $inputCode)) {
             Cache::put($forgetRequestLimitKey, $forgetRequestLimit ? $forgetRequestLimit + 1 : 1, 300);
             abort(500, __('Incorrect email verification code'));
@@ -314,7 +319,7 @@ class AuthController extends Controller
         if (!$user->save()) {
             abort(500, __('Reset failed'));
         }
-        Cache::forget(CacheKey::get('EMAIL_VERIFY_CODE', $email));
+        Cache::forget(CacheKey::get('EMAIL_VERIFY_CODE', $cacheKeyEmail));
         return response([
             'data' => true
         ]);
